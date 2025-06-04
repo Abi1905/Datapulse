@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DataPulse - Features</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/aos/2.3.4/aos.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/aos/2.3.4/aos.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f3f4f6; /* Light gray background */
+            color: #1f2937; /* Dark gray text */
+            font-family: 'Poppins', sans-serif;
+            overflow-x: hidden;
+        }
+
+        .feature-card {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            border: 2px solid #e5e7eb;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 6px 15px rgba(59, 130, 246, 0.6);
+        }
+
+        .cta-button {
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 30px;
+            font-weight: bold;
+            box-shadow: 0 4px 10px rgba(59, 130, 246, 0.5);
+            transition: all 0.3s ease-in-out;
+        }
+
+        .cta-button:hover {
+            background: linear-gradient(135deg, #2563eb, #3b82f6);
+            transform: scale(1.05);
+        }
+
+        .header-footer-bg {
+            background-color: #1f2937; /* Dark gray for header and footer */
+            color: white;
+        }
+
+        .gradient-bg {
+            background: linear-gradient(135deg, #f3f4f6, white);
+        }
+    </style>
+</head>
+<body>
+    <div class="min-h-screen flex flex-col items-center p-6">
+        <h1 class="text-5xl font-bold text-center mb-6 header-footer-bg p-4 rounded-lg" data-aos="fade-up">🚀 DataPulse - Powerful Features</h1>
+        <p class="text-lg text-center mb-8 max-w-3xl" data-aos="fade-up" data-aos-delay="100">Empowering seamless data analysis with AI-driven sentiment analysis, CSV processing, and powerful visualizations.</p>
+        
+        <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl">
+            <div class="feature-card" data-aos="zoom-in">
+                <h2 class="text-2xl font-semibold mb-2">📊 CSV-Based Sentiment Analysis</h2>
+                <p>Upload a CSV file containing tweets and categorize them as Positive, Neutral, or Negative.</p>
+            </div>
+            
+            <div class="feature-card" data-aos="zoom-in" data-aos-delay="100">
+                <h2 class="text-2xl font-semibold mb-2">⚡ Real-Time Data Processing</h2>
+                <p>Instantly process, analyze, and filter sentiment-based data dynamically.</p>
+            </div>
+            
+            <div class="feature-card" data-aos="zoom-in" data-aos-delay="200">
+                <h2 class="text-2xl font-semibold mb-2">📈 Chart.js Visualizations</h2>
+                <p>Generate stunning pie charts representing sentiment trends visually.</p>
+            </div>
+            
+            <div class="feature-card" data-aos="zoom-in" data-aos-delay="300">
+                <h2 class="text-2xl font-semibold mb-2">🔍 Image & File to CSV</h2>
+                <p>Extract structured CSV data from images, PDFs, TXT, DOC files using OCR.</p>
+            </div>
+            
+            <div class="feature-card" data-aos="zoom-in" data-aos-delay="400">
+                <h2 class="text-2xl font-semibold mb-2">🎨 Keyword Highlighting</h2>
+                <p>Sentiment words are color-coded (green for positive, red for negative, yellow for neutral).</p>
+            </div>
+            
+            <div class="feature-card" data-aos="zoom-in" data-aos-delay="500">
+                <h2 class="text-2xl font-semibold mb-2">📂 Multi-Format Data Handling</h2>
+                <p>Supports CSV, TXT, PDF, DOC, DOCX, and image-based data conversion.</p>
+            </div>
+        </div>
+        
+        <div class="mt-12 text-center" data-aos="fade-up" data-aos-delay="600">
+            <h2 class="text-3xl font-bold mb-4">Ready to Transform Your Data?</h2>
+            <button class="cta-button">Get Started Now</button>
+        </div>
+    </div>
+
+    <script>
+        AOS.init(); // Initialize Animate On Scroll library
+    </script>
+</body>
+</html>

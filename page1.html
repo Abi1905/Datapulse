@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en" x-data="{ mobileMenuOpen: false, activeModal: null }">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DataPulse</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/alpinejs/3.13.0/cdn.min.js" defer></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/aos/2.3.4/aos.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/aos/2.3.4/aos.js"></script>
+    <style>
+        /* Custom Styles */
+        .floating {
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% {
+                transform: translateY(0);
+            }
+            50% {
+                transform: translateY(-10px);
+            }
+        }
+
+        .glow-on-hover {
+            transition: box-shadow 0.3s ease;
+        }
+
+        .glow-on-hover:hover {
+            box-shadow: 0 0 15px rgba(59, 130, 246, 0.6);
+        }
+
+        .sticky-nav {
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+
+        .animated-background {
+            background: linear-gradient(135deg, #f8fafc, #ffffff);
+            animation: gradientAnimation 10s ease infinite;
+        }
+
+        @keyframes gradientAnimation {
+            0% {
+                background-position: 0% 50%;
+            }
+            50% {
+                background-position: 100% 50%;
+            }
+            100% {
+                background-position: 0% 50%;
+            }
+        }
+    </style>
+</head>
+<body class="font-sans bg-gray-100 text-gray-900">
+    <!-- Header -->
+    <header class="bg-gray-800 text-white sticky-nav">
+        <div class="container mx-auto flex justify-between items-center p-6">
+            <div class="text-2xl font-bold">DataPulse</div>
+            <!-- Desktop Navigation -->
+            <nav class="hidden md:flex space-x-6">
+                <a href="#home" class="hover:text-gray-400">Home</a>
+                <a href="feature.html" class="hover:text-gray-400">Features</a>
+                <a href="http://localhost/contact-form/index.php" class="hover:text-gray-400">Contact</a>
+            </nav>
+            <!-- Mobile Hamburger Menu -->
+            <button @click="mobileMenuOpen = !mobileMenuOpen" class="md:hidden text-2xl">
+                <i class="fas" :class="mobileMenuOpen ? 'fa-times' : 'fa-bars'"></i>
+            </button>
+        </div>
+        <!-- Mobile Menu -->
+        <div x-show="mobileMenuOpen" class="md:hidden bg-gray-700 text-white">
+            <nav class="flex flex-col space-y-2 p-4">
+                <a href="#home" class="hover:text-gray-400">Home</a>
+                <a href="feature.html" class="hover:text-gray-400">Features</a>
+                <a href="http://localhost/contact-form/index.php" class="hover:text-gray-400">Contact</a>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Hero Section -->
+    <section id="home" class="animated-background py-40">
+        <div class="container mx-auto text-center">
+            <h1 class="text-4xl md:text-5xl font-bold mb-6 floating" data-aos="fade-up">Unlock the Power of Your Data</h1>
+            <p class="text-lg mb-8" data-aos="fade-up" data-aos-delay="100">Transform your business with data-driven insights.</p>
+            <a href="page2.html" class="bg-blue-500 text-white px-8 py-3 rounded-full text-lg font-semibold hover:bg-blue-600 glow-on-hover" data-aos="fade-up" data-aos-delay="200">
+                Get Started
+            </a>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section id="features" class="container mx-auto py-20">
+        <h2 class="text-3xl font-bold text-center mb-12" data-aos="fade-up">Why Choose Data Analytics?</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <!-- Feature Card 1 -->
+            <div class="bg-white p-6 rounded-lg shadow-lg text-center glow-on-hover" data-aos="zoom-in">
+                <i class="fas fa-chart-line text-4xl text-blue-500 mb-4"></i>
+                <h3 class="text-xl font-bold mb-2">Advanced Analytics</h3>
+                <p>Gain deeper insights into your data with cutting-edge analytics tools.</p>
+                <button @click="activeModal = 'analytics'" class="text-blue-500 font-semibold mt-4 hover:underline">Learn More</button>
+            </div>
+            <!-- Feature Card 2 -->
+            <div class="bg-white p-6 rounded-lg shadow-lg text-center glow-on-hover" data-aos="zoom-in" data-aos-delay="100">
+                <i class="fas fa-cogs text-4xl text-blue-500 mb-4"></i>
+                <h3 class="text-xl font-bold mb-2">Customizable Dashboards</h3>
+                <p>Create dashboards tailored to your business needs.</p>
+                <button @click="activeModal = 'dashboards'" class="text-blue-500 font-semibold mt-4 hover:underline">Learn More</button>
+            </div>
+            <!-- Feature Card 3 -->
+            <div class="bg-white p-6 rounded-lg shadow-lg text-center glow-on-hover" data-aos="zoom-in" data-aos-delay="200">
+                <i class="fas fa-lock text-4xl text-blue-500 mb-4"></i>
+                <h3 class="text-xl font-bold mb-2">Secure Data</h3>
+                <p>Keep your data safe with industry-leading security measures.</p>
+                <button @click="activeModal = 'security'" class="text-blue-500 font-semibold mt-4 hover:underline">Learn More</button>
+            </div>
+        </div>
+    </section>
+
+    <!-- Modals -->
+    <div x-cloak x-show="activeModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+        <div class="bg-white rounded-lg shadow-lg p-6 w-96" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 scale-90" x-transition:enter-end="opacity-100 scale-100">
+            <h3 class="text-xl font-bold mb-4" x-text="{
+                'analytics': 'Advanced Analytics',
+                'dashboards': 'Customizable Dashboards',
+                'security': 'Secure Data'
+            }[activeModal]"></h3>
+            <p x-text="{
+                'analytics': 'Explore how advanced analytics can drive better decision-making.',
+                'dashboards': 'Learn how to create and use dashboards for better business insights.',
+                'security': 'Understand our security features to protect your data.'
+            }[activeModal]"></p>
+            <button @click="activeModal = null" class="mt-4 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Close</button>
+        </div>
+    </div>
+
+    <!-- Contact Section -->
+    <section id="contact" class="bg-gray-200 py-20">
+        <div class="container mx-auto text-center">
+            <h2 class="text-3xl font-bold mb-6" data-aos="fade-up">Get in Touch</h2>
+            <p class="mb-6" data-aos="fade-up" data-aos-delay="100"></p>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="bg-gray-800 text-white py-6">
+        <div class="container mx-auto text-center">
+            <p></p>
+        </div>
+    </footer>
+
+    <script>
+        AOS.init(); // Initialize Animate On Scroll library
+    </script>
+</body>
+</html>

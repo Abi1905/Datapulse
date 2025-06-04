@@ -1,0 +1,781 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data Visualization Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        .chart-container {
+            width: 100%;
+            height: 500px;
+            position: relative;
+        }
+        #dataChart {
+            width: 100%;
+            height: 100%;
+        }
+        #plotlyChart {
+            width: 100%;
+            height: 100%;
+        }
+        .customization-modal, .download-modal {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 20px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 font-roboto">
+    <div class="container mx-auto p-4">
+        <header class="text-center mb-8">
+            <h1 class="text-4xl font-bold text-gray-800">Data Visualization Dashboard</h1>
+            <p class="text-gray-600">Visualize your data with interactive charts and insights.</p>
+        </header>
+
+        <section class="bg-white p-6 rounded-lg shadow-md">
+            <!-- File Upload Section -->
+            <div class="upload-section mb-6">
+                <label for="csvFileInput" class="block text-lg font-semibold text-gray-800">Upload CSV File</label>
+                <input type="file" id="csvFileInput" accept=".csv" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100">
+                <button id="inferButton" class="mt-4 bg-teal-500 text-white py-2 px-4 rounded hover:bg-teal-600">Infer Data</button>
+            </div>
+
+            <!-- Inference Results -->
+            <div id="inferenceResult" class="mb-6"></div>
+
+            <!-- Chart Controls -->
+            <div class="chart-controls mb-6">
+                <select id="chartSelector" class="block w-full p-2 border border-gray-300 rounded">
+                    <option value="bar">Bar Chart</option>
+                    <option value="line">Line Chart</option>
+                    <option value="pie">Pie Chart</option>
+                    <option value="doughnut">Doughnut Chart</option>
+                    <option value="radar">Radar Chart</option>
+                    <option value="polarArea">Polar Area Chart</option>
+                    <option value="scatter">Scatter Chart</option>
+                    <option value="bubble">Bubble Chart</option>
+                    <option value="area">Area Chart</option>
+                    <option value="mixed">Mixed Chart (Bar + Line)</option>
+                    <option value="multiSetBar">Multi-Set Bar Chart</option>
+                    <option value="circularDendrogram">Circular Dendrogram</option>
+                    <option value="linearDendrogram">Linear Dendrogram</option>
+                    <option value="matrixPlot">Matrix Plot</option>
+                    <option value="violinPlot">Violin Plot</option>
+                </select>
+                <button id="renderChartButton" class="mt-4 bg-teal-500 text-white py-2 px-4 rounded hover:bg-teal-600">Render Chart</button>
+                <button id="customizeButton" class="mt-4 bg-yellow-500 text-white py-2 px-4 rounded hover:bg-yellow-600">Customize Chart</button>
+            </div>
+
+            <!-- Chart Container -->
+            <div class="chart-container">
+                <canvas id="dataChart"></canvas>
+                <div id="plotlyChart" style="display: none;"></div>
+            </div>
+
+            <!-- Chart Inference -->
+            <div id="chartInference" class="mt-6"></div>
+
+            <!-- Download Button -->
+            <button id="downloadPdfButton" class="mt-4 bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600">Download as PDF/Image</button>
+        </section>
+
+        <!-- Customization Modal -->
+        <div class="customization-modal" id="customizationModal">
+            <h3 class="text-2xl font-semibold mb-4">Customize Chart</h3>
+            <label for="chartWidth" class="block text-lg font-semibold text-gray-800">Chart Width:</label>
+            <input type="number" id="chartWidth" placeholder="Enter width in pixels" class="block w-full p-2 border border-gray-300 rounded">
+            <label for="chartHeight" class="block text-lg font-semibold text-gray-800">Chart Height:</label>
+            <input type="number" id="chartHeight" placeholder="Enter height in pixels" class="block w-full p-2 border border-gray-300 rounded">
+            <label for="colorPalette" class="block text-lg font-semibold text-gray-800">Color Palette:</label>
+            <select id="colorPalette" class="block w-full p-2 border border-gray-300 rounded">
+                <option value="default">Default</option>
+                <option value="rainbow">Rainbow</option>
+                <option value="pastel">Pastel</option>
+                <option value="monochrome">Monochrome</option>
+            </select>
+            <button id="applyCustomization" class="mt-4 bg-teal-500 text-white py-2 px-4 rounded hover:bg-teal-600">Apply</button>
+            <button id="closeCustomization" class="mt-4 bg-red-500 text-white py-2 px-4 rounded hover:bg-red-600">Close</button>
+        </div>
+
+        <!-- Download Modal -->
+        <div class="download-modal" id="downloadModal">
+            <h3 class="text-2xl font-semibold mb-4">Download Options</h3>
+            <label for="downloadFormat" class="block text-lg font-semibold text-gray-800">Select Download Format:</label>
+            <select id="downloadFormat" class="block w-full p-2 border border-gray-300 rounded">
+                <option value="pdf">PDF</option>
+                <option value="image">Image (PNG)</option>
+            </select>
+            <label class="block text-lg font-semibold text-gray-800">Select Charts to Download:</label>
+            <div class="checkbox-group" id="chartCheckboxes">
+                <!-- Checkboxes for each chart type will be dynamically added here -->
+            </div>
+            <div class="checkbox-group">
+                <label class="block text-lg font-semibold text-gray-800">
+                    <input type="checkbox" id="includeInference" value="inference"> Include Inference
+                </label>
+            </div>
+            <button id="confirmDownload" class="mt-4 bg-teal-500 text-white py-2 px-4 rounded hover:bg-teal-600">Download</button>
+            <button id="closeDownloadModal" class="mt-4 bg-red-500 text-white py-2 px-4 rounded hover:bg-red-600">Close</button>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const fileInput = document.getElementById('csvFileInput');
+            const inferButton = document.getElementById('inferButton');
+            const inferenceResult = document.getElementById('inferenceResult');
+            const chartSelector = document.getElementById('chartSelector');
+            const renderChartButton = document.getElementById('renderChartButton');
+            const customizeButton = document.getElementById('customizeButton');
+            const downloadPdfButton = document.getElementById('downloadPdfButton');
+            const dataChartCanvas = document.getElementById('dataChart').getContext('2d');
+            const plotlyChart = document.getElementById('plotlyChart');
+            const chartInference = document.getElementById('chartInference');
+
+            // Customization Modal Elements
+            const customizationModal = document.getElementById('customizationModal');
+            const chartWidthInput = document.getElementById('chartWidth');
+            const chartHeightInput = document.getElementById('chartHeight');
+            const colorPaletteSelect = document.getElementById('colorPalette');
+            const applyCustomizationButton = document.getElementById('applyCustomization');
+            const closeCustomizationButton = document.getElementById('closeCustomization');
+
+            // Download Modal Elements
+            const downloadModal = document.getElementById('downloadModal');
+            const downloadFormatSelect = document.getElementById('downloadFormat');
+            const chartCheckboxes = document.getElementById('chartCheckboxes');
+            const includeInferenceCheckbox = document.getElementById('includeInference');
+            const confirmDownloadButton = document.getElementById('confirmDownload');
+            const closeDownloadModalButton = document.getElementById('closeDownloadModal');
+
+            let chartInstance = null;
+            let parsedData = null;
+            let currentChartType = null;
+
+            // Step 1: Infer data when the user uploads a CSV file
+            inferButton.addEventListener('click', function () {
+                if (fileInput.files.length === 0) {
+                    alert('Please upload a CSV file first.');
+                    return;
+                }
+
+                const file = fileInput.files[0];
+                console.log('File selected:', file.name); // Debugging log
+
+                Papa.parse(file, {
+                    header: true,
+                    dynamicTyping: true,
+                    delimiter: ",", // Explicitly specify the delimiter
+                    skipEmptyLines: true, // Skip empty lines
+                    complete: function (results) {
+                        console.log('Raw CSV Content:', results); // Debugging log
+                        if (results.errors.length > 0) {
+                            console.error('Parsing Errors:', results.errors); // Debugging log
+                            alert('Error parsing CSV file. Please check the file format.');
+                            return;
+                        }
+
+                        parsedData = results.data;
+                        console.log('Parsed Data:', parsedData); // Debugging log
+
+                        if (parsedData.length === 0) {
+                            alert('The uploaded file is empty or has no valid data.');
+                            return;
+                        }
+
+                        displayInference(parsedData);
+                    },
+                    error: function (error) {
+                        console.error('Error parsing CSV:', error); // Debugging log
+                        alert('An error occurred while parsing the CSV file.');
+                    }
+                });
+            });
+
+            // Function to display detailed data inference
+            function displayInference(data) {
+                const totalCount = data.length;
+                const columnDetails = {};
+                const typeCounts = {};
+
+                // Initialize column details and type counts
+                Object.keys(data[0]).forEach(key => {
+                    const firstValue = data[0][key];
+                    const type = typeof firstValue;
+                    columnDetails[key] = {
+                        type: type,
+                        uniqueValues: new Set()
+                    };
+
+                    // Count the number of columns for each type
+                    if (!typeCounts[type]) {
+                        typeCounts[type] = 0;
+                    }
+                    typeCounts[type]++;
+                });
+
+                // Process each row to count unique values
+                data.forEach(row => {
+                    Object.keys(row).forEach(key => {
+                        columnDetails[key].uniqueValues.add(row[key]);
+                    });
+                });
+
+                // Generate inference HTML
+                let inferenceHTML = `<p><strong>Total Rows:</strong> ${totalCount}</p>`;
+
+                // Display file type distribution in the required format
+                const totalColumns = Object.keys(columnDetails).length;
+                inferenceHTML += `<p><strong>File Type Distribution:</strong></p>`;
+                inferenceHTML += `<table>
+                    <tr>
+                        <th>File Type</th>
+                        <th>Count</th>
+                        <th>Percentage</th>
+                    </tr>`;
+
+                Object.keys(typeCounts).forEach(type => {
+                    const count = typeCounts[type];
+                    const percentage = ((count / totalColumns) * 100).toFixed(2);
+                    inferenceHTML += `
+                        <tr>
+                            <td>${type}</td>
+                            <td>${count}</td>
+                            <td>${percentage}%</td>
+                        </tr>`;
+                });
+
+                inferenceHTML += `</table>`;
+
+                // Display details for each column
+                inferenceHTML += `<p><strong>Column Details:</strong></p>`;
+                Object.keys(columnDetails).forEach(key => {
+                    const details = columnDetails[key];
+                    inferenceHTML += `<p><strong>Column:</strong> ${key}</p>`;
+                    inferenceHTML += `<ul>
+                        <li><strong>Data Type:</strong> ${details.type}</li>
+                        <li><strong>Unique Values:</strong> ${details.uniqueValues.size}</li>
+                    </ul>`;
+                });
+
+                inferenceResult.innerHTML = inferenceHTML;
+            }
+
+            // Step 2: Render the selected chart
+            renderChartButton.addEventListener('click', function () {
+                if (!parsedData) {
+                    alert('Please infer data first.');
+                    return;
+                }
+
+                const selectedChart = chartSelector.value;
+                currentChartType = selectedChart;
+                renderChart(selectedChart, parsedData);
+            });
+
+            // Function to render the chart
+            function renderChart(chartType, data) {
+                // Clear previous chart
+                if (chartInstance) {
+                    chartInstance.destroy();
+                    chartInstance = null;
+                }
+                plotlyChart.innerHTML = ''; // Clear Plotly chart
+                plotlyChart.style.display = 'none'; // Hide Plotly container
+                document.getElementById('dataChart').style.display = 'block'; // Show Chart.js canvas
+
+                // Display processing notification
+                chartInference.innerHTML = '<p><strong>Processing:</strong> Rendering chart...</p>';
+
+                // Use setTimeout to simulate a delay for better visibility of the notification
+                setTimeout(() => {
+                    const labels = Object.keys(data[0]);
+
+                    switch (chartType) {
+                        case 'bar':
+                        case 'line':
+                        case 'radar':
+                        case 'pie':
+                        case 'doughnut':
+                        case 'polarArea':
+                        case 'scatter':
+                        case 'bubble':
+                        case 'area':
+                        case 'mixed':
+                            renderChartJsChart(chartType, data);
+                            break;
+                        case 'multiSetBar':
+                        case 'circularDendrogram':
+                        case 'linearDendrogram':
+                        case 'matrixPlot':
+                        case 'violinPlot':
+                            renderPlotlyChart(chartType, data);
+                            break;
+                        default:
+                            console.error('Unsupported chart type:', chartType);
+                            return;
+                    }
+
+                    // Display chart inference
+                    displayChartInference(chartType, data);
+                }, 100); // Adjust the delay as needed
+            }
+
+            // Function to render Chart.js charts
+            function renderChartJsChart(chartType, data) {
+                const labels = Object.keys(data[0]);
+                let datasets;
+
+                switch (chartType) {
+                    case 'bar':
+                    case 'line':
+                    case 'radar':
+                        datasets = labels.map(label => ({
+                            label: label,
+                            data: data.map(row => row[label]),
+                            backgroundColor: 'rgba(56, 178, 172, 0.2)', // Teal with transparency
+                            borderColor: 'rgba(56, 178, 172, 1)', // Teal
+                            borderWidth: 1
+                        }));
+                        break;
+                    case 'pie':
+                    case 'doughnut':
+                    case 'polarArea':
+                        datasets = [{
+                            label: 'Dataset',
+                            data: data.map(row => Object.values(row).reduce((a, b) => a + b, 0)),
+                            backgroundColor: labels.map(() => 'rgba(56, 178, 172, 0.2)'), // Teal with transparency
+                            borderColor: labels.map(() => 'rgba(56, 178, 172, 1)'), // Teal
+                            borderWidth: 1
+                        }];
+                        break;
+                    case 'scatter':
+                        datasets = labels.map(label => ({
+                            label: label,
+                            data: data.map((row, index) => ({ x: index, y: row[label] })),
+                            backgroundColor: 'rgba(56, 178, 172, 0.2)', // Teal with transparency
+                            borderColor: 'rgba(56, 178, 172, 1)', // Teal
+                            borderWidth: 1
+                        }));
+                        break;
+                    case 'bubble':
+                        datasets = labels.map(label => ({
+                            label: label,
+                            data: data.map((row, index) => ({ x: index, y: row[label], r: 5 })),
+                            backgroundColor: 'rgba(56, 178, 172, 0.2)', // Teal with transparency
+                            borderColor: 'rgba(56, 178, 172, 1)', // Teal
+                            borderWidth: 1
+                        }));
+                        break;
+                    case 'area':
+                        datasets = labels.map(label => ({
+                            label: label,
+                            data: data.map(row => row[label]),
+                            backgroundColor: 'rgba(56, 178, 172, 0.2)', // Teal with transparency
+                            borderColor: 'rgba(56, 178, 172, 1)', // Teal
+                            borderWidth: 1,
+                            fill: true // Enable fill for area chart
+                        }));
+                        break;
+                    case 'mixed':
+                        datasets = [
+                            {
+                                type: 'bar',
+                                label: 'Bar Dataset',
+                                data: data.map(row => row[labels[0]]),
+                                backgroundColor: 'rgba(56, 178, 172, 0.2)', // Teal with transparency
+                                borderColor: 'rgba(56, 178, 172, 1)', // Teal
+                                borderWidth: 1
+                            },
+                            {
+                                type: 'line',
+                                label: 'Line Dataset',
+                                data: data.map(row => row[labels[1]]),
+                                backgroundColor: 'rgba(255, 99, 132, 0.2)', // Red with transparency
+                                borderColor: 'rgba(255, 99, 132, 1)', // Red
+                                borderWidth: 1
+                            }
+                        ];
+                        break;
+                    default:
+                        console.error('Unsupported chart type:', chartType);
+                        return;
+                }
+
+                chartInstance = new Chart(dataChartCanvas, {
+                    type: chartType === 'mixed' ? 'bar' : chartType, // Mixed chart uses 'bar' as base
+                    data: {
+                        labels: chartType === 'scatter' || chartType === 'bubble' ? data.map((_, index) => index) : labels,
+                        datasets: datasets
+                    },
+                    options: {
+                        scales: {
+                            y: {
+                                beginAtZero: true
+                            }
+                        }
+                    }
+                });
+            }
+
+            // Function to render Plotly charts
+            function renderPlotlyChart(chartType, data) {
+                document.getElementById('dataChart').style.display = 'none'; // Hide Chart.js canvas
+                plotlyChart.style.display = 'block'; // Show Plotly container
+
+                const labels = Object.keys(data[0]);
+
+                switch (chartType) {
+                    case 'multiSetBar':
+                        const traces = labels.map(label => ({
+                            x: data.map((_, index) => index),
+                            y: data.map(row => row[label]),
+                            name: label,
+                            type: 'bar'
+                        }));
+
+                        const layout = {
+                            barmode: 'group',
+                            title: 'Multi-Set Bar Chart'
+                        };
+
+                        Plotly.newPlot(plotlyChart, traces, layout);
+                        break;
+                    case 'circularDendrogram':
+                        const dendrogramData = {
+                            labels: labels,
+                            parents: Array(labels.length).fill(''),
+                            values: data.map(row => Object.values(row).reduce((a, b) => a + b, 0))
+                        };
+
+                        const trace = {
+                            type: 'sunburst',
+                            labels: dendrogramData.labels,
+                            parents: dendrogramData.parents,
+                            values: dendrogramData.values,
+                            outsidetextfont: { size: 20, color: '#377eb8' },
+                            leaf: { opacity: 0.4 },
+                            marker: { line: { width: 2 } }
+                        };
+
+                        Plotly.newPlot(plotlyChart, [trace], { title: 'Circular Dendrogram' });
+                        break;
+                    case 'linearDendrogram':
+                        const linearDendrogramData = {
+                            labels: labels,
+                            parents: Array(labels.length).fill(''),
+                            values: data.map(row => Object.values(row).reduce((a, b) => a + b, 0))
+                        };
+
+                        const linearTrace = {
+                            type: 'icicle',
+                            labels: linearDendrogramData.labels,
+                            parents: linearDendrogramData.parents,
+                            values: linearDendrogramData.values,
+                            outsidetextfont: { size: 20, color: '#377eb8' },
+                            leaf: { opacity: 0.4 },
+                            marker: { line: { width: 2 } }
+                        };
+
+                        Plotly.newPlot(plotlyChart, [linearTrace], { title: 'Linear Dendrogram' });
+                        break;
+                    case 'matrixPlot':
+                        const z = labels.map(label => data.map(row => row[label]));
+
+                        const matrixTrace = {
+                            z: z,
+                            x: labels,
+                            y: labels,
+                            type: 'heatmap',
+                            colorscale: 'Viridis'
+                        };
+
+                        Plotly.newPlot(plotlyChart, [matrixTrace], { title: 'Matrix Plot' });
+                        break;
+                    case 'violinPlot':
+                        const violinTraces = labels.map(label => ({
+                            y: data.map(row => row[label]),
+                            name: label,
+                            type: 'violin',
+                            box: { visible: true },
+                            meanline: { visible: true }
+                        }));
+
+                        Plotly.newPlot(plotlyChart, violinTraces, { title: 'Violin Plot' });
+                        break;
+                    default:
+                        console.error('Unsupported chart type:', chartType);
+                        return;
+                }
+            }
+
+            // Function to display chart inference
+            function displayChartInference(chartType, data) {
+                let inferenceText = '';
+
+                switch (chartType) {
+                    case 'bar':
+                        inferenceText = `The bar chart shows the distribution of values across ${Object.keys(data[0]).length} categories.`;
+                        break;
+                    case 'line':
+                        inferenceText = `The line chart displays trends over ${data.length} data points.`;
+                        break;
+                    case 'pie':
+                        inferenceText = `The pie chart represents the proportion of values for ${Object.keys(data[0]).length} categories.`;
+                        break;
+                    case 'doughnut':
+                        inferenceText = `The doughnut chart shows the composition of values for ${Object.keys(data[0]).length} categories.`;
+                        break;
+                    case 'radar':
+                        inferenceText = `The radar chart compares multiple variables across ${Object.keys(data[0]).length} dimensions.`;
+                        break;
+                    case 'polarArea':
+                        inferenceText = `The polar area chart represents the proportion of values for ${Object.keys(data[0]).length} categories in a circular layout.`;
+                        break;
+                    case 'scatter':
+                        inferenceText = `The scatter chart displays the relationship between data points across ${data.length} observations.`;
+                        break;
+                    case 'bubble':
+                        inferenceText = `The bubble chart displays the relationship between data points with varying sizes across ${data.length} observations.`;
+                        break;
+                    case 'area':
+                        inferenceText = `The area chart displays trends over ${data.length} data points with filled areas.`;
+                        break;
+                    case 'mixed':
+                        inferenceText = `The mixed chart combines bar and line charts to display multiple datasets.`;
+                        break;
+                    case 'multiSetBar':
+                        inferenceText = `The multi-set bar chart displays multiple datasets in grouped bars.`;
+                        break;
+                    case 'circularDendrogram':
+                        inferenceText = `The circular dendrogram displays hierarchical data in a circular layout.`;
+                        break;
+                    case 'linearDendrogram':
+                        inferenceText = `The linear dendrogram displays hierarchical data in a linear layout.`;
+                        break;
+                    case 'matrixPlot':
+                        inferenceText = `The matrix plot displays relationships between variables in a grid format.`;
+                        break;
+                    case 'violinPlot':
+                        inferenceText = `The violin plot displays the distribution of data across different categories.`;
+                        break;
+                    default:
+                        inferenceText = 'No inference available for the selected chart type.';
+                }
+
+                chartInference.innerHTML = `<p><strong>Chart Inference:</strong> ${inferenceText}</p>`;
+            }
+
+            // Customize Chart Button Functionality
+            customizeButton.addEventListener('click', function () {
+                customizationModal.style.display = 'block';
+            });
+
+            // Apply Customization
+            applyCustomizationButton.addEventListener('click', function () {
+                const width = chartWidthInput.value;
+                const height = chartHeightInput.value;
+                const colorPalette = colorPaletteSelect.value;
+
+                if (width) {
+                    document.getElementById('dataChart').style.width = `${width}px`;
+                    plotlyChart.style.width = `${width}px`;
+                }
+                if (height) {
+                    document.getElementById('dataChart').style.height = `${height}px`;
+                    plotlyChart.style.height = `${height}px`;
+                }
+                if (colorPalette !== 'default') {
+                    updateColorPalette(colorPalette);
+                }
+
+                customizationModal.style.display = 'none';
+            });
+
+            // Close Customization Modal
+            closeCustomizationButton.addEventListener('click', function () {
+                customizationModal.style.display = 'none';
+            });
+
+            // Download Button Functionality
+            downloadPdfButton.addEventListener('click', function () {
+                // Populate chart checkboxes dynamically
+                chartCheckboxes.innerHTML = '';
+                const chartTypes = [
+                    'bar', 'line', 'pie', 'doughnut', 'radar', 'polarArea', 'scatter', 'bubble', 'area', 'mixed',
+                    'multiSetBar', 'circularDendrogram', 'linearDendrogram', 'matrixPlot', 'violinPlot'
+                ];
+                chartTypes.forEach(type => {
+                    const label = document.createElement('label');
+                    label.innerHTML = `<input type="checkbox" value="${type}"> ${type}`;
+                    chartCheckboxes.appendChild(label);
+                });
+
+                downloadModal.style.display = 'block';
+            });
+
+            // Handle Download Confirmation
+            confirmDownloadButton.addEventListener('click', function () {
+                const selectedFormat = downloadFormatSelect.value;
+                const selectedCharts = Array.from(document.querySelectorAll('#chartCheckboxes input:checked')).map(checkbox => checkbox.value);
+                const includeInference = includeInferenceCheckbox.checked;
+
+                if (selectedCharts.length === 0 && !includeInference) {
+                    alert('Please select at least one chart or inference to download.');
+                    return;
+                }
+
+                if (selectedFormat === 'pdf') {
+                    downloadChartsAsPdf(selectedCharts, includeInference);
+                } else if (selectedFormat === 'image') {
+                    downloadChartsAsImage(selectedCharts, includeInference);
+                }
+
+                downloadModal.style.display = 'none';
+            });
+
+            // Close Download Modal
+            closeDownloadModalButton.addEventListener('click', function () {
+                downloadModal.style.display = 'none';
+            });
+
+            // Function to download selected charts as PDF
+            function downloadChartsAsPdf(selectedCharts, includeInference) {
+                const pdf = new jspdf.jsPDF();
+
+                selectedCharts.forEach((chartType, index) => {
+                    if (index > 0) {
+                        pdf.addPage();
+                    }
+
+                    if (chartType === 'multiSetBar' || chartType === 'circularDendrogram' || chartType === 'linearDendrogram' || chartType === 'matrixPlot' || chartType === 'violinPlot') {
+                        // For Plotly charts
+                        const plotlyElement = document.getElementById('plotlyChart');
+                        html2canvas(plotlyElement).then(canvas => {
+                            const imgData = canvas.toDataURL('image/png');
+                            const imgProps = pdf.getImageProperties(imgData);
+                            const pdfWidth = pdf.internal.pageSize.getWidth();
+                            const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+                            pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+                            if (index === selectedCharts.length - 1 && !includeInference) {
+                                pdf.save('charts.pdf');
+                            }
+                        });
+                    } else {
+                        // For Chart.js charts
+                        const chartElement = document.getElementById('dataChart');
+                        html2canvas(chartElement).then(canvas => {
+                            const imgData = canvas.toDataURL('image/png');
+                            const imgProps = pdf.getImageProperties(imgData);
+                            const pdfWidth = pdf.internal.pageSize.getWidth();
+                            const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+                            pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+                            if (index === selectedCharts.length - 1 && !includeInference) {
+                                pdf.save('charts.pdf');
+                            }
+                        });
+                    }
+                });
+
+                // Add inference results if selected
+                if (includeInference) {
+                    pdf.addPage();
+                    const inferenceElement = document.getElementById('inferenceResult');
+                    html2canvas(inferenceElement).then(canvas => {
+                        const imgData = canvas.toDataURL('image/png');
+                        const imgProps = pdf.getImageProperties(imgData);
+                        const pdfWidth = pdf.internal.pageSize.getWidth();
+                        const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+                        pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+                        pdf.save('charts_and_inference.pdf');
+                    });
+                }
+            }
+
+            // Function to download selected charts as images
+            function downloadChartsAsImage(selectedCharts, includeInference) {
+                selectedCharts.forEach(chartType => {
+                    if (chartType === 'multiSetBar' || chartType === 'circularDendrogram' || chartType === 'linearDendrogram' || chartType === 'matrixPlot' || chartType === 'violinPlot') {
+                        // For Plotly charts
+                        const plotlyElement = document.getElementById('plotlyChart');
+                        html2canvas(plotlyElement).then(canvas => {
+                            const link = document.createElement('a');
+                            link.href = canvas.toDataURL('image/png');
+                            link.download = `${chartType}.png`;
+                            link.click();
+                        });
+                    } else {
+                        // For Chart.js charts
+                        const chartElement = document.getElementById('dataChart');
+                        html2canvas(chartElement).then(canvas => {
+                            const link = document.createElement('a');
+                            link.href = canvas.toDataURL('image/png');
+                            link.download = `${chartType}.png`;
+                            link.click();
+                        });
+                    }
+                });
+
+                // Add inference results if selected
+                if (includeInference) {
+                    const inferenceElement = document.getElementById('inferenceResult');
+                    html2canvas(inferenceElement).then(canvas => {
+                        const link = document.createElement('a');
+                        link.href = canvas.toDataURL('image/png');
+                        link.download = 'inference.png';
+                        link.click();
+                    });
+                }
+            }
+
+            // Function to update color palette
+            function updateColorPalette(palette) {
+                const colors = getColorPalette(palette);
+
+                if (currentChartType === 'multiSetBar' || currentChartType === 'circularDendrogram' || currentChartType === 'linearDendrogram' || currentChartType === 'matrixPlot' || currentChartType === 'violinPlot') {
+                    // For Plotly charts
+                    Plotly.restyle(plotlyChart, {
+                        marker: { color: colors }
+                    });
+                } else {
+                    // For Chart.js charts
+                    if (chartInstance) {
+                        chartInstance.data.datasets.forEach((dataset, index) => {
+                            dataset.backgroundColor = colors[index % colors.length];
+                            dataset.borderColor = colors[index % colors.length];
+                        });
+                        chartInstance.update();
+                    }
+                }
+            }
+
+            // Function to get color palette
+            function getColorPalette(palette) {
+                switch (palette) {
+                    case 'rainbow':
+                        return ['#FF0000', '#FF7F00', '#FFFF00', '#00FF00', '#0000FF', '#4B0082', '#8B00FF'];
+                    case 'pastel':
+                        return ['#FFD1DC', '#FFA07A', '#FFD700', '#98FB98', '#87CEEB', '#DDA0DD', '#FFB6C1'];
+                    case 'monochrome':
+                        return ['#333333', '#666666', '#999999', '#CCCCCC', '#FFFFFF'];
+                    default:
+                        return ['#38B2AC', '#3182CE', '#63B3ED', '#90CDF4', '#BEE3F8'];
+                }
+            }
+        });
+    </script>
+</body>
+</html>

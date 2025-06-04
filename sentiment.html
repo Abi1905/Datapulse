@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sentiment Analysis</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- Include Chart.js for pie chart -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Include html2canvas for image download -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <!-- Include jsPDF for PDF download -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script>
+        // Wait for the DOM to load before running the script
+        document.addEventListener('DOMContentLoaded', function () {
+            // Global variable to store all tweets
+            let allTweets = [];
+
+            // Listen for form submission
+            document.getElementById('uploadForm').addEventListener('submit', function (event) {
+                event.preventDefault();
+                const fileInput = document.getElementById('fileInput');
+                const file = fileInput.files[0];
+
+                if (!file) {
+                    alert('Please select a CSV file!');
+                    return;
+                }
+
+                const reader = new FileReader();
+
+                reader.onload = function (e) {
+                    const content = e.target.result;
+                    console.log('CSV Content:', content); // Debugging log
+
+                    // Parse the CSV content
+                    const rows = content.split('\n').filter(row => row.trim() !== ''); // Remove empty rows
+                    console.log('Parsed Rows:', rows); // Debugging log
+
+                    const results = { positive: 0, neutral: 0, negative: 0 };
+
+                    // Reset global tweets array
+                    allTweets = [];
+
+                    rows.forEach((row, index) => {
+                        if (index === 0) return; // Skip header row
+                        const columns = row.split(','); // Split row into columns
+                        const text = columns[0].trim(); // Assuming the first column contains the tweet text
+                        console.log('Row:', row, 'Text:', text); // Debugging log
+
+                        if (!text) {
+                            console.warn('Empty text in row:', row); // Debugging log
+                            return;
+                        }
+
+                        const sentiment = analyzeSentiment(text);
+                        results[sentiment]++;
+
+                        // Store tweet and sentiment
+                        allTweets.push({ text, sentiment });
+                    });
+
+                    console.log('Results:', results); // Debugging log
+                    console.log('All Tweets:', allTweets); // Debugging log
+
+                    // Update UI with results
+                    document.getElementById('positiveCount').querySelector('.text-2xl').textContent = results.positive;
+                    document.getElementById('neutralCount').querySelector('.text-2xl').textContent = results.neutral;
+                    document.getElementById('negativeCount').querySelector('.text-2xl').textContent = results.negative;
+
+                    // Initially display all tweets
+                    displayTweets(allTweets);
+
+                    // Show inference section and pie chart
+                    showInference(results, allTweets);
+                    renderPieChart(results);
+
+                    document.getElementById('results').classList.remove('hidden');
+                };
+
+                reader.readAsText(file);
+            });
+
+            // Function to display tweets based on a filter
+            function displayTweets(tweets) {
+                const tweetsList = document.getElementById('tweetsList');
+                tweetsList.innerHTML = '';
+
+                tweets.forEach(({ text, sentiment }) => {
+                    tweetsList.appendChild(createTweetElement(text, sentiment));
+                });
+            }
+
+            // Simple sentiment analysis function
+            function analyzeSentiment(text) {
+                const positiveWords = ['love', 'amazing', 'great', 'fantastic', 'satisfied'];
+                const negativeWords = ['hate', 'worst', 'terrible', 'bad', 'awful'];
+                const neutralWords = ['okay', 'not bad', 'average', 'fine'];
+
+                const textLower = text.toLowerCase();
+                if (positiveWords.some(word => textLower.includes(word))) return 'positive';
+                if (negativeWords.some(word => textLower.includes(word))) return 'negative';
+                return 'neutral';
+            }
+
+            // Create tweet element for UI
+            function createTweetElement(text, sentiment) {
+                const sentimentColors = {
+                    positive: 'text-teal-500', // Teal for positive
+                    neutral: 'text-yellow-500', // Yellow for neutral
+                    negative: 'text-red-500'    // Red for negative
+                };
+
+                const tweetElement = document.createElement('div');
+                tweetElement.className = 'bg-gray-50 p-4 rounded-lg shadow-md flex justify-between items-center';
+
+                // Highlight keywords in the tweet text
+                const highlightedText = highlightKeywords(text);
+
+                tweetElement.innerHTML = `
+                    <div>
+                        <p class="text-gray-800">${highlightedText}</p>
+                        <p class="text-sm text-gray-500">Sentiment: <span class="font-bold ${sentimentColors[sentiment]}">${capitalize(sentiment)}</span></p>
+                    </div>
+                `;
+
+                return tweetElement;
+            }
+
+            // Highlight keywords in the tweet text
+            function highlightKeywords(text) {
+                const positiveWords = ['love', 'amazing', 'great', 'fantastic', 'satisfied'];
+                const negativeWords = ['hate', 'worst', 'terrible', 'bad', 'awful'];
+                const neutralWords = ['okay', 'not bad', 'average', 'fine'];
+
+                let highlightedText = text;
+
+                // Highlight positive words
+                positiveWords.forEach(word => {
+                    const regex = new RegExp(`\\b${word}\\b`, 'gi');
+                    highlightedText = highlightedText.replace(regex, `<span class="bg-teal-200">${word}</span>`);
+                });
+
+                // Highlight negative words
+                negativeWords.forEach(word => {
+                    const regex = new RegExp(`\\b${word}\\b`, 'gi');
+                    highlightedText = highlightedText.replace(regex, `<span class="bg-red-200">${word}</span>`);
+                });
+
+                // Highlight neutral words
+                neutralWords.forEach(word => {
+                    const regex = new RegExp(`\\b${word}\\b`, 'gi');
+                    highlightedText = highlightedText.replace(regex, `<span class="bg-yellow-200">${word}</span>`);
+                });
+
+                return highlightedText;
+            }
+
+            // Capitalize function
+            function capitalize(str) {
+                return str.charAt(0).toUpperCase() + str.slice(1);
+            }
+
+            // Add event listeners to filter buttons
+            document.getElementById('positiveCount').addEventListener('click', () => {
+                const positiveTweets = allTweets.filter(tweet => tweet.sentiment === 'positive');
+                displayTweets(positiveTweets);
+            });
+
+            document.getElementById('neutralCount').addEventListener('click', () => {
+                const neutralTweets = allTweets.filter(tweet => tweet.sentiment === 'neutral');
+                displayTweets(neutralTweets);
+            });
+
+            document.getElementById('negativeCount').addEventListener('click', () => {
+                const negativeTweets = allTweets.filter(tweet => tweet.sentiment === 'negative');
+                displayTweets(negativeTweets);
+            });
+
+            // Function to show inference section
+            function showInference(results, tweets) {
+                const totalTweets = tweets.length;
+                const positivePercentage = ((results.positive / totalTweets) * 100).toFixed(2);
+                const neutralPercentage = ((results.neutral / totalTweets) * 100).toFixed(2);
+                const negativePercentage = ((results.negative / totalTweets) * 100).toFixed(2);
+
+                // Determine the highest percentage sentiment
+                const highestSentiment = getHighestSentiment(results);
+
+                const inferenceSection = document.getElementById('inference');
+                inferenceSection.innerHTML = `
+                    <h2 class="text-2xl font-semibold mb-4">Sentiment Analysis Insights</h2>
+                    <div class="bg-gray-50 p-6 rounded-lg shadow-md">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                            <div class="bg-teal-50 p-4 rounded-lg">
+                                <h3 class="text-lg font-bold text-teal-800">Positive Tweets</h3>
+                                <p class="text-2xl text-teal-800">${results.positive} (${positivePercentage}%)</p>
+                                <p class="text-sm text-teal-600 mt-2">Positive tweets express happiness, satisfaction, or excitement. They often include words like <span class="font-bold">love</span>, <span class="font-bold">great</span>, or <span class="font-bold">amazing</span>.</p>
+                            </div>
+                            <div class="bg-yellow-50 p-4 rounded-lg">
+                                <h3 class="text-lg font-bold text-yellow-800">Neutral Tweets</h3>
+                                <p class="text-2xl text-yellow-800">${results.neutral} (${neutralPercentage}%)</p>
+                                <p class="text-sm text-yellow-600 mt-2">Neutral tweets are neither positive nor negative. They often include words like <span class="font-bold">okay</span>, <span class="font-bold">average</span>, or <span class="font-bold">fine</span>.</p>
+                            </div>
+                            <div class="bg-red-50 p-4 rounded-lg">
+                                <h3 class="text-lg font-bold text-red-800">Negative Tweets</h3>
+                                <p class="text-2xl text-red-800">${results.negative} (${negativePercentage}%)</p>
+                                <p class="text-sm text-red-600 mt-2">Negative tweets express dissatisfaction, frustration, or anger. They often include words like <span class="font-bold">hate</span>, <span class="font-bold">worst</span>, or <span class="font-bold">terrible</span>.</p>
+                            </div>
+                        </div>
+                        <div class="mt-6">
+                            <h3 class="text-xl font-bold text-gray-800">Overall Sentiment</h3>
+                            <p class="text-lg text-gray-800"><span class="font-bold">Total Tweets:</span> ${totalTweets}</p>
+                            <p class="text-lg text-gray-800"><span class="font-bold">Highest Sentiment:</span> <span class="font-bold ${getSentimentColor(highestSentiment)}">${capitalize(highestSentiment)}</span> (${Math.max(positivePercentage, neutralPercentage, negativePercentage)}%)</p>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Function to determine the highest sentiment
+            function getHighestSentiment(results) {
+                if (results.positive > results.neutral && results.positive > results.negative) {
+                    return 'positive';
+                } else if (results.neutral > results.positive && results.neutral > results.negative) {
+                    return 'neutral';
+                } else {
+                    return 'negative';
+                }
+            }
+
+            // Function to get sentiment color
+            function getSentimentColor(sentiment) {
+                const sentimentColors = {
+                    positive: 'text-teal-500', // Teal for positive
+                    neutral: 'text-yellow-500', // Yellow for neutral
+                    negative: 'text-red-500'    // Red for negative
+                };
+                return sentimentColors[sentiment];
+            }
+
+            // Function to render pie chart
+            function renderPieChart(results) {
+                console.log('Rendering Pie Chart with Data:', results); // Debugging log
+                const ctx = document.getElementById('pieChart').getContext('2d');
+                new Chart(ctx, {
+                    type: 'pie',
+                    data: {
+                        labels: ['Positive', 'Neutral', 'Negative'],
+                        datasets: [{
+                            data: [results.positive, results.neutral, results.negative],
+                            backgroundColor: [
+                                'rgba(94, 234, 212, 0.6)', // Teal for positive
+                                'rgba(255, 206, 86, 0.6)',  // Yellow for neutral
+                                'rgba(255, 99, 132, 0.6)'   // Red for negative
+                            ],
+                            borderColor: [
+                                'rgba(94, 234, 212, 1)',
+                                'rgba(255, 206, 86, 1)',
+                                'rgba(255, 99, 132, 1)'
+                            ],
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: {
+                                position: 'top',
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function (context) {
+                                        const label = context.label || '';
+                                        const value = context.raw || 0;
+                                        return `${label}: ${value} tweets`;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+
+            // Function to download the output as an image
+            function downloadAsImage() {
+                html2canvas(document.querySelector("#results")).then(canvas => {
+                    const link = document.createElement('a');
+                    link.download = 'sentiment-analysis.png';
+                    link.href = canvas.toDataURL();
+                    link.click();
+                });
+            }
+
+            // Function to download the output as a PDF
+            function downloadAsPDF() {
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF('p', 'mm', 'a4');
+                const element = document.querySelector("#results");
+
+                html2canvas(element).then(canvas => {
+                    const imgData = canvas.toDataURL('image/png');
+                    const imgWidth = 210; // A4 width in mm
+                    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+                    doc.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+                    doc.save('sentiment-analysis.pdf');
+                });
+            }
+
+            // Add event listeners to download buttons
+            document.getElementById('downloadImage').addEventListener('click', downloadAsImage);
+            document.getElementById('downloadPDF').addEventListener('click', downloadAsPDF);
+        });
+    </script>
+</head>
+<body class="bg-gray-100 font-roboto">
+    <div class="container mx-auto p-4">
+        <header class="text-center mb-8">
+            <h1 class="text-4xl font-bold text-gray-800">Sentiment Analysis</h1>
+            <p class="text-gray-600">Analyze the sentiment of your file and manage them effectively.</p>
+        </header>
+
+        <section class="bg-white p-6 rounded-lg shadow-md">
+            <h2 class="text-2xl font-semibold mb-4">Upload File</h2>
+            <form id="uploadForm" class="mb-6">
+                <input type="file" id="fileInput" accept=".csv" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100">
+                <button type="submit" class="mt-4 bg-teal-500 text-white py-2 px-4 rounded hover:bg-teal-600">Analyze</button>
+            </form>
+
+            <div id="results" class="hidden">
+                <h2 class="text-2xl font-semibold mb-4">Analysis Results</h2>
+                <div class="flex justify-between mb-4">
+                    <button id="positiveCount" class="bg-teal-100 text-teal-800 p-4 rounded-lg hover:bg-teal-200">
+                        <p class="text-lg font-bold">Positive Tweets</p>
+                        <p class="text-2xl">0</p>
+                    </button>
+                    <button id="neutralCount" class="bg-yellow-100 text-yellow-800 p-4 rounded-lg hover:bg-yellow-200">
+                        <p class="text-lg font-bold">Neutral Tweets</p>
+                        <p class="text-2xl">0</p>
+                    </button>
+                    <button id="negativeCount" class="bg-red-100 text-red-800 p-4 rounded-lg hover:bg-red-200">
+                        <p class="text-lg font-bold">Negative Tweets</p>
+                        <p class="text-2xl">0</p>
+                    </button>
+                </div>
+
+                <!-- Inference Section -->
+                <div id="inference" class="mt-8"></div>
+
+                <!-- Pie Chart -->
+                <div class="w-full max-w-md mx-auto mb-8">
+                    <canvas id="pieChart" style="width: 400px; height: 400px;"></canvas>
+                </div>
+
+                <!-- Tweets List -->
+                <div id="tweetsList" class="space-y-4"></div>
+            </div>
+
+            <!-- Download Buttons -->
+            <div class="mt-8 flex justify-center space-x-4">
+                <button id="downloadImage" class="bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600">Download as Image</button>
+                <button id="downloadPDF" class="bg-green-500 text-white py-2 px-4 rounded hover:bg-green-600">Download as PDF</button>
+            </div>
+        </section>
+    </div>
+</body>
+</html>

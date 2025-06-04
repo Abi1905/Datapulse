@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DataPulse</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4.0.2/dist/tesseract.min.js"></script>
+    <script src="https://mozilla.github.io/pdf.js/build/pdf.js"></script>
+    <script src="https://unpkg.com/mammoth@1.6.0/mammoth.browser.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        .background-image {
+            background-image: url('https://storage.googleapis.com/a1aa/image/8xDhiyhRppKVPti1qh6bR0JFeFy6yk3VSKQGK4yqisJT3rBKA.jpg');
+            background-size: cover;
+            background-position: center;
+            opacity: 0.2;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+        }
+
+        .menu {
+            display: none; /* Initially hidden */
+        }
+
+        .card {
+            background: white;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+            border-radius: 20px;
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+        .card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn {
+            background: #3b82f6; /* Solid blue */
+            color: white;
+            transition: background 0.3s, transform 0.2s;
+        }
+
+        .btn:hover {
+            background: #2563eb; /* Darker blue on hover */
+            transform: scale(1.05);
+        }
+
+        .scroll-container {
+            overflow-x: auto;
+            overflow-y: auto;
+            max-width: 100%;
+            max-height: 200px;
+            border: 1px solid #ddd;
+            padding: 10px;
+            position: relative;
+            margin-top: 10px;
+        }
+
+        .glow-on-hover {
+            transition: box-shadow 0.3s ease;
+        }
+
+        .glow-on-hover:hover {
+            box-shadow: 0 0 15px rgba(59, 130, 246, 0.6);
+        }
+    </style>
+    <script>
+        // Disable workers to avoid cross-origin issues
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://mozilla.github.io/pdf.js/build/pdf.worker.js';
+
+        function toggleMenu() {
+            const menu = document.getElementById('menu');
+            if (menu) {
+                menu.style.display = menu.style.display === 'none' || menu.style.display === '' ? 'block' : 'none';
+            } else {
+                console.error('Menu element not found!');
+            }
+        }
+
+        function showSection(id) {
+            document.querySelectorAll('.textbox-container').forEach(section => section.classList.add('hidden'));
+            document.getElementById(id).classList.remove('hidden');
+        }
+
+        function loadCsvData() {
+            const csvData = document.getElementById('csvData').value;
+            const rows = csvData.split('\n').map(row => row.split(','));
+            displayTable(rows, 'tableContainer');
+
+            document.getElementById('loadNotification').innerText = 'Loading...';
+            setTimeout(() => {
+                document.getElementById('loadNotification').innerText = '';
+            }, 1000);
+
+            document.getElementById('downloadButtonContainer').classList.remove('hidden');
+        }
+
+        function displayTable(data, containerId) {
+            const tableContainer = document.getElementById(containerId);
+            const table = document.createElement('table');
+
+            data.forEach(row => {
+                const tr = document.createElement('tr');
+                row.forEach(cell => {
+                    const td = document.createElement('td');
+                    td.textContent = cell;
+                    tr.appendChild(td);
+                });
+                table.appendChild(tr);
+            });
+
+            tableContainer.innerHTML = '';
+            tableContainer.appendChild(table);
+        }
+
+        function handleImageChange(event) {
+            const imageFile = event.target.files[0];
+            if (imageFile) {
+                document.getElementById('imageNotification').innerText = 'Converting...';
+                convertToCSV(imageFile)
+                    .then(csvData => {
+                        document.getElementById('imageNotification').innerText = '';
+                        displayCsvInTable(csvData, 'imageCsvPreviewTable');
+                        document.getElementById('imageCsvPreviewContainer').classList.remove('hidden');
+                    })
+                    .catch(error => {
+                        document.getElementById('imageNotification').innerText = 'Error converting image.';
+                        console.error(error);
+                    });
+            } else {
+                document.getElementById('imageNotification').innerText = '';
+                document.getElementById('imageCsvPreviewContainer').classList.add('hidden');
+            }
+        }
+
+        async function convertToCSV(imageFile) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = function (event) {
+                    const imageDataUrl = event.target.result;
+
+                    const img = new Image();
+                    img.onload = function () {
+                        const canvas = document.createElement('canvas');
+                        canvas.width = img.width;
+                        canvas.height = img.height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0);
+
+                        Tesseract.recognize(canvas, 'eng', {
+                            logger: m => console.log(m)
+                        })
+                            .then(({data: {text}}) => {
+                                const csvData = text.replace(/,/g, ' ').replace(/\n/g, ',\n');
+                                resolve(csvData);
+                            })
+                            .catch(err => reject(err));
+                    };
+                    img.onerror = function () {
+                        reject(new Error("Failed to load the image."));
+                    };
+                    img.src = imageDataUrl;
+                };
+                reader.onerror = function () {
+                    reject(new Error("Failed to read the image file."));
+                };
+                reader.readAsDataURL(imageFile);
+            });
+        }
+
+        function displayCsvInTable(csvData, tableId) {
+            const table = document.getElementById(tableId);
+            table.innerHTML = '';
+
+            const rows = csvData.split('\n');
+            rows.forEach(row => {
+                const cells = row.split(',');
+                const tr = document.createElement('tr');
+                cells.forEach(cell => {
+                    const td = document.createElement('td');
+                    td.textContent = cell;
+                    tr.appendChild(td);
+                });
+                table.appendChild(tr);
+            });
+        }
+
+        function getCsvDataFromTable(tableId) {
+            const table = document.getElementById(tableId);
+            let csv = [];
+            let rows = table.querySelectorAll("tr");
+
+            for (let i = 0; i < rows.length; i++) {
+                let row = [], cols = rows[i].querySelectorAll("td, th");
+
+                for (let j = 0; j < cols.length; j++) {
+                    row.push(cols[j].innerText);
+                }
+
+                csv.push(row.join(","));
+            }
+
+            return csv.join("\n");
+        }
+
+        function downloadCsv(tableContainerId) {
+            let csvData = '';
+            if (tableContainerId === 'tableContainer') {
+                csvData = document.getElementById('csvData').value;
+            } else {
+                const table = document.querySelector(`#${tableContainerId} table`);
+                if (!table) return; // Exit if table doesn't exist
+                csvData = getCsvDataFromTable(tableContainerId);
+            }
+            const blob = new Blob([csvData], {type: 'text/csv'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'data.csv';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function downloadImageCsv() {
+            const csvText = getCsvDataFromTable('imageCsvPreviewTable');
+            const blob = new Blob([csvText], {type: 'text/csv'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'image_data.csv';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function handleFileToCsvSelect(event) {
+            const file = event.target.files[0];
+            if (file) {
+                document.getElementById('fileNotification').innerText = 'Converting...';
+                convertFileToCsvContent(file)
+                    .then(csvData => {
+                        document.getElementById('fileNotification').innerText = '';
+                        displayCsvInTable(csvData, 'fileCsvPreviewTable');
+                        document.getElementById('fileCsvPreviewContainer').classList.remove('hidden');
+                        document.getElementById('downloadFileCsvButton').classList.remove('hidden');
+                    })
+                    .catch(error => {
+                        document.getElementById('fileNotification').innerText = 'Error converting file.';
+                        console.error(error);
+                    });
+            } else {
+                document.getElementById('fileCsvPreviewTable').innerHTML = '';
+                document.getElementById('fileCsvPreviewContainer').classList.add('hidden');
+                document.getElementById('downloadFileCsvButton').classList.add('hidden');
+            }
+        }
+
+        async function convertFileToCsvContent(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = function (event) {
+                    const fileContent = event.target.result;
+                    const fileType = file.name.split('.').pop().toLowerCase();
+                    let csvData = '';
+                    switch (fileType) {
+                        case 'txt':
+                            csvData = textToCsv(fileContent);
+                            resolve(csvData);
+                            break;
+                        case 'pdf':
+                            pdfToCsv(file)
+                                .then(csv => resolve(csv))
+                                .catch(err => reject(err));
+                            break;
+                        case 'doc':
+                        case 'docx':
+                            wordToCsv(file)
+                                .then(csv => resolve(csv))
+                                .catch(err => reject(err));
+                            break;
+                        default:
+                            reject(new Error(`Unsupported file type: ${fileType}`));
+                    }
+                };
+                reader.onerror = function () {
+                    reject(new Error("Failed to read the file."));
+                };
+                reader.readAsText(file);
+            });
+        }
+
+        function textToCsv(text) {
+            return text.replace(/,/g, ' ').replace(/\n/g, ',\n');
+        }
+
+        async function pdfToCsv(file) {
+            return new Promise((resolve, reject) => {
+                pdfjsLib.getDocument(URL.createObjectURL(file)).promise
+                    .then(pdf => {
+                        let textContentPromises = [];
+                        for (let i = 1; i <= pdf.numPages; i++) {
+                            textContentPromises.push(pdf.getPage(i).then(page => page.getTextContent()));
+                        }
+                        Promise.all(textContentPromises)
+                            .then(pagesTextContent => {
+                                // Concatenate text from all pages
+                                let fullText = pagesTextContent.map(page => {
+                                    return page.items.map(item => item.str).join(' ');
+                                }).join('\n');
+                                resolve(textToCsv(fullText)); // Convert to CSV format
+                            })
+                            .catch(err => reject(err));
+                    })
+                    .catch(err => reject(err));
+            });
+        }
+
+        async function wordToCsv(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = function (event) {
+                    const arrayBuffer = event.target.result;
+
+                    mammoth.extractRawText({arrayBuffer: arrayBuffer})
+                        .then(function (result) {
+                            const text = result.value; // The raw text
+                            resolve(textToCsv(text)); // Convert to CSV format
+                        })
+                        .catch(err => reject(err));
+                }
+                reader.onerror = function (error) {
+                    reject(error);
+                };
+                reader.readAsArrayBuffer(file);
+            });
+        }
+
+        function downloadFileCsv() {
+            const csvText = getCsvDataFromTable('fileCsvPreviewTable');
+            const blob = new Blob([csvText], {type: 'text/csv'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'file_data.csv';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+        function updateButtonText() {
+            const csvData = document.getElementById('csvData');
+            const toggleButton = document.querySelector('header button');
+
+            if (csvData.value.trim() !== '') {
+                toggleButton.classList.remove('text-white');
+                toggleButton.classList.add('text-black');
+            } else {
+                toggleButton.classList.remove('text-black');
+                toggleButton.classList.add('text-white');
+            }
+        }
+
+        function changeTextboxColor() {
+            const csvData = document.getElementById('csvData');
+            if (csvData.value.trim() !== '') {
+                csvData.style.color = 'black';
+            } else {
+                csvData.style.color = ''; // Reset to default color
+            }
+        }
+    </script>
+</head>
+<body class="font-roboto bg-gray-100 relative">
+<div class="background-image"></div>
+<header class="bg-gray-800 text-white p-4 flex justify-between items-center sticky-nav">
+    <div class="container mx-auto flex justify-between items-center">
+        <h1 class="text-2xl font-bold">DataPulse</h1>
+        <button onclick="toggleMenu()" class="btn text-white py-2 px-4 rounded glow-on-hover">
+            Converted Hub
+        </button>
+    </div>
+</header>
+<div id="menu" class="menu bg-gray-700 text-white p-4">
+    <!-- Load Your Data Section -->
+    <div class="card p-4 text-center">
+        <h2 class="text-xl font-bold mb-4 text-gray-900">📋 Load Your Data</h2>
+        <button onclick="showSection('pasteSection')" class="btn w-full text-white py-2 rounded glow-on-hover">Paste Your Data</button>
+        <button onclick="showSection('imageToCsvSection')" class="btn w-full text-white py-2 rounded glow-on-hover">Image to CSV</button>
+        <button onclick="showSection('fileToCsvSection')" class="btn w-full text-white py-2 rounded glow-on-hover">File to CSV</button>
+    </div>
+
+    <!-- Paste Section -->
+    <div id="pasteSection" class="textbox-container hidden">
+        <textarea id="csvData" rows="5" cols="50" placeholder="Paste your data here..."
+                  oninput="updateButtonText(); changeTextboxColor()" class="w-full p-2 border rounded mb-2"></textarea>
+        <br>
+        <button onclick="loadCsvData()" class="btn w-full text-white py-2 rounded glow-on-hover">Load Data</button>
+        <div id="loadNotification"></div>
+        <div id="downloadButtonContainer" class="hidden">
+            <button onclick="downloadCsv('tableContainer')" class="btn w-full text-white py-2 rounded glow-on-hover">Download CSV</button>
+        </div>
+        <div class="scroll-container">
+            <div id="tableContainer"></div>
+        </div>
+    </div>
+
+    <!-- Image to CSV Section -->
+    <div id="imageToCsvSection" class="textbox-container hidden">
+        <input type="file" accept="image/*" id="imageInput" onchange="handleImageChange(event)"
+               class="w-full p-2 border rounded mb-2">
+        <div id="imageNotification"></div>
+        <div id="imageCsvPreviewContainer" class="scroll-container hidden">
+            <table id="imageCsvPreviewTable"></table>
+        </div>
+        <button onclick="downloadImageCsv()" class="btn w-full text-white py-2 rounded glow-on-hover">Download CSV</button>
+    </div>
+
+    <!-- File to CSV Section -->
+    <div id="fileToCsvSection" class="textbox-container hidden">
+        <input type="file" id="fileInput" accept=".txt,.pdf,.doc,.docx" onchange="handleFileToCsvSelect(event)"
+               class="w-full p-2 border rounded mb-2">
+        <div id="fileNotification"></div>
+        <div id="fileCsvPreviewContainer" class="scroll-container hidden">
+            <table id="fileCsvPreviewTable"></table>
+        </div>
+        <button id="downloadFileCsvButton" onclick="downloadFileCsv()"
+                class="btn w-full text-white py-2 rounded glow-on-hover hidden">Download CSV
+        </button>
+    </div>
+</div>
+<main class="container mx-auto p-4">
+    <section class="text-center mb-16 welcome-section">
+        <div class="relative z-10">
+            <h2 class="text-3xl font-bold mb-4 text-gray-900">Welcome to DataPulse</h2>
+        </div>
+    </section>
+    <section class="mb-8">
+        <h2 class="text-2xl font-bold mb-4 text-gray-900">Choose to Analyze</h2>
+        <div class="grid grid-cols-1 gap-4">
+            <a class="bg-white p-6 rounded-lg shadow-lg block text-center hover:bg-gray-100 transition glow-on-hover"
+               href="sentiment.html">
+                <img alt="Icon representing Twitter sentiment analysis" class="w-16 h-16 mb-4 mx-auto"
+                     src="https://storage.googleapis.com/a1aa/image/KvAwf9uAUg2RV6ifwk3JLQiZ5ntlpiWdsYIxegTFq5HJdvGoA.jpg">
+                <h3 class="text-lg font-semibold mb-2 text-gray-900">Sentiment Analysis</h3>
+                <p class="text-gray-700">Analyze the sentiment of Data in real-time to understand public opinion.</p>
+            </a>
+            <a class="bg-white p-6 rounded-lg shadow-lg block text-center hover:bg-gray-100 transition glow-on-hover"
+               href="dv.html">
+                <img alt="Icon representing data analysis" class="w-16 h-16 mb-4 mx-auto"
+                     src="https://storage.googleapis.com/a1aa/image/uwUyk5EEqfS2fUk95PY7eP2YoeRgUU6mkC9CRH9rpbOp6eagC.jpg">
+                <h3 class="text-lg font-semibold mb-2 text-gray-900">Data Visualization</h3>
+                <p class="text-gray-700">Upload your datasets and perform comprehensive data analysis.</p>
+            </a>
+        </div>
+    </section>
+</main>
+</body>
+</html>
